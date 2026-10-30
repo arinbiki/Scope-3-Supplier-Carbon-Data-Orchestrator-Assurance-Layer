@@ -1,0 +1,121 @@
+{
+  "name": "WF_04_Carbon_Conflict_and_Exception_HITL",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "carbon/conflict/resolve",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook_Conflict_Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/api/w/demo/jobs/run/p/f/carbon_data/non_violent_script",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"action\": \"resolve_conflict\",\n  \"payload\": {\n    \"candidates\": $json.body.candidates,\n    \"threshold_pct\": $json.body.threshold_pct || 20.0\n  }\n}"
+      },
+      "name": "Windmill_Resolve_Conflict",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.has_conflict}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Check_High_Variance_Trigger",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// High-Variance Conflict Queue Dispatcher (Slack / Teams / Steward Alert)\nconst winner = items[0].json.winner;\nconst variance = items[0].json.variance_pct;\n\nreturn [{\n  json: {\n    alert_type: 'MATERIAL_CARBON_DATA_CONFLICT',\n    variance_pct: variance,\n    winning_tier: winner.method_tier,\n    winning_dqs: winner.dqs.overall_dqs,\n    winning_emissions_mt: winner.co2e_emissions_mt,\n    message: `Conflict resolved via deterministic hierarchy: Variance ${variance}% > 20% threshold. Selected Tier ${winner.method_tier} (DQS ${winner.dqs.overall_dqs}).`,\n    conflict_id: items[0].json.conflict_record.conflict_id\n  }\n}];"
+      },
+      "name": "Format_HITL_Steward_Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [920, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"CONFLICT_RESOLVED\",\n  \"conflict_triggered\": $json.has_conflict,\n  \"variance_pct\": $json.variance_pct,\n  \"winner_datapoint_id\": $json.winner.datapoint_id,\n  \"winner_tier\": $json.winner.method_tier,\n  \"winner_emissions_mt\": $json.winner.co2e_emissions_mt,\n  \"resolution_rationale\": $json.conflict_record.resolution_rationale,\n  \"superseded_count\": $json.conflict_record.superseded_count\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond_Conflict_Resolution",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1160, 300]
+    }
+  ],
+  "connections": {
+    "Webhook_Conflict_Input": {
+      "main": [
+        [
+          {
+            "node": "Windmill_Resolve_Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Windmill_Resolve_Conflict": {
+      "main": [
+        [
+          {
+            "node": "Check_High_Variance_Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check_High_Variance_Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format_HITL_Steward_Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond_Conflict_Resolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_HITL_Steward_Alert": {
+      "main": [
+        [
+          {
+            "node": "Respond_Conflict_Resolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

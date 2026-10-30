@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Scope 3 Supplier Carbon Data Orchestrator & Assurance Layer",
+    "output": "visuals/scope3-carbon-architecture.html",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "animation": "trace"
+  },
+  "components": [
+    { "id": "surveys", "type": "external", "label": "Supplier Surveys", "sublabel": "Primary Activity Data", "pos": [70, 160], "size": [140, 60], "tag": "Webforms / JSON" },
+    { "id": "cdp_api", "type": "external", "label": "CDP Disclosures", "sublabel": "Supply Chain Membership", "pos": [70, 280], "size": [140, 60], "tag": "REST API" },
+    { "id": "pcf_drop", "type": "external", "label": "Supplier PCFs", "sublabel": "PACT / ISO-14067 Files", "pos": [70, 400], "size": [140, 60], "tag": "S3 / HTTPS Drop" },
+    { "id": "erp_spend", "type": "external", "label": "ERP AP Ledger", "sublabel": "Spend & Purchase Orders", "pos": [70, 520], "size": [140, 60], "tag": "SAP / NetSuite" },
+    { "id": "cert_vault", "type": "external", "label": "Certificate Vault", "sublabel": "RECs / PPAs / ISO Statements", "pos": [70, 640], "size": [140, 60], "tag": "SHA-256 Vault" },
+
+    { "id": "n8n_ingest", "type": "cloud", "label": "WF_01 Ingestion Gate", "sublabel": "Idempotency & Normalization", "pos": [260, 320], "size": [150, 64], "tag": "SHA-256 Stamp" },
+    { "id": "n8n_cadence", "type": "cloud", "label": "WF_02 Cadence FSM", "sublabel": "Supplier Reminders Day 0-28", "pos": [460, 420], "size": [150, 64], "tag": "Automated Loop" },
+    { "id": "n8n_calc", "type": "cloud", "label": "WF_03 Calc Orchestrator", "sublabel": "Rollup & Double-Count Proof", "pos": [460, 240], "size": [150, 64], "tag": "Reconciliation" },
+
+    { "id": "wm_val_gates", "type": "backend", "label": "8-Gate Validator", "sublabel": "Structural / Unit / Boundary / FX", "pos": [670, 180], "size": [160, 62], "tag": "Zero LLM" },
+    { "id": "wm_dqs_pedigree", "type": "backend", "label": "5-DQS Pedigree Scorer", "sublabel": "Reliability / Tech / Geo", "pos": [670, 340], "size": [160, 62], "tag": "Pedigree Matrix" },
+
+    { "id": "wm_router", "type": "backend", "label": "5-Tier Waterfall Router", "sublabel": "Tier 1 Primary to Tier 5 Spend", "pos": [890, 180], "size": [160, 62], "tag": "Strict Hierarchy" },
+    { "id": "wm_conflict", "type": "backend", "label": "Conflict Engine (>20%)", "sublabel": "Multi-Source Hierarchical Resolution", "pos": [890, 340], "size": [160, 62], "tag": "Deterministic" },
+
+    { "id": "wm_cbam", "type": "backend", "label": "CBAM Compliance Engine", "sublabel": "Actual vs Default Surrender Surcharge", "pos": [1110, 180], "size": [160, 62], "tag": "EU Tariff Guard" },
+    { "id": "wm_assurance", "type": "backend", "label": "Assurance Pack Generator", "sublabel": "Sealed SHA-256 Audit Trails", "pos": [1110, 340], "size": [160, 62], "tag": "Auditor-Ready" },
+
+    { "id": "pg_blackboard", "type": "database", "label": "PostgreSQL 18 Blackboard", "sublabel": "scope3_carbon (17 Governed Tables)", "pos": [890, 520], "size": [170, 66], "tag": "Site-Level Truth" },
+    { "id": "immutable_registry", "type": "database", "label": "Factor Library Registry", "sublabel": "GHG / Ecoinvent / EEIO / Defra", "pos": [1110, 520], "size": [160, 66], "tag": "Immutable Versions" },
+
+    { "id": "auditor_portal", "type": "external", "label": "Auditor Assurance Portal", "sublabel": "PwC / KPMG / DNV Sampling", "pos": [1340, 180], "size": [160, 62], "tag": "Minutes Sampling" },
+    { "id": "csrd_esrs", "type": "external", "label": "CSRD / ESRS E1 Engine", "sublabel": "E1-6 Scope 3 Disclosures", "pos": [1340, 300], "size": [160, 62], "tag": "Disclosure Ready" },
+    { "id": "procure_score", "type": "external", "label": "Carbon Procurement", "sublabel": "Site-Level Scorecards", "pos": [1340, 420], "size": [160, 62], "tag": "Sourcing Signals" },
+    { "id": "pact_exchange", "type": "external", "label": "PACT PCF Exchange", "sublabel": "Outbound Customer Footprints", "pos": [1340, 540], "size": [160, 62], "tag": "WBCSD PACT" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Multi-Source Carbon Ingestion Channels", "wraps": ["surveys", "cdp_api", "pcf_drop", "erp_spend", "cert_vault"], "pad": 16 },
+    { "kind": "security-group", "label": "n8n Workflow Ingestion & Cadence Layer", "wraps": ["n8n_ingest", "n8n_cadence", "n8n_calc"], "pad": 16 },
+    { "kind": "region", "label": "Windmill Python Governance Engine (f/carbon_data/non_violent_script, Zero LLM)", "wraps": ["wm_val_gates", "wm_dqs_pedigree", "wm_router", "wm_conflict", "wm_cbam", "wm_assurance"], "pad": 20 },
+    { "kind": "security-group", "label": "PostgreSQL 18 State Blackboard & Version Binding", "wraps": ["pg_blackboard", "immutable_registry"], "pad": 16 },
+    { "kind": "region", "label": "Enterprise Disclosures & Downstream Integration", "wraps": ["auditor_portal", "csrd_esrs", "procure_score", "pact_exchange"], "pad": 16 }
+  ],
+  "connections": [
+    { "id": "surveys-to-ingest", "from": "surveys", "to": "n8n_ingest", "label": "Survey Response", "variant": "emphasis" },
+    { "id": "cdp-to-ingest", "from": "cdp_api", "to": "n8n_ingest", "label": "CDP Ingestion" },
+    { "id": "pcf-to-ingest", "from": "pcf_drop", "to": "n8n_ingest", "label": "PACT PCF Drop", "variant": "emphasis" },
+    { "id": "spend-to-ingest", "from": "erp_spend", "to": "n8n_ingest", "label": "AP Spend Extract", "variant": "dashed" },
+    { "id": "cert-to-ingest", "from": "cert_vault", "to": "n8n_ingest", "label": "Verified Certs", "variant": "dashed" },
+    { "id": "ingest-to-cadence", "from": "n8n_ingest", "to": "n8n_cadence", "label": "State Updates" },
+    { "id": "ingest-to-calc", "from": "n8n_ingest", "to": "n8n_calc", "label": "Validated Payload", "variant": "emphasis" },
+    { "id": "calc-to-val", "from": "n8n_calc", "to": "wm_val_gates", "label": "Trigger Ingestion Gates", "variant": "emphasis" },
+    { "id": "val-to-dqs", "from": "wm_val_gates", "to": "wm_dqs_pedigree", "label": "Enriched Payload" },
+    { "id": "dqs-to-router", "from": "wm_dqs_pedigree", "to": "wm_router", "label": "Pedigree Scores", "variant": "emphasis" },
+    { "id": "router-to-conflict", "from": "wm_router", "to": "wm_conflict", "label": "Multi-Source Compare" },
+    { "id": "conflict-to-cbam", "from": "wm_conflict", "to": "wm_cbam", "label": "Imported Goods Tag" },
+    { "id": "cbam-to-assurance", "from": "wm_cbam", "to": "wm_assurance", "label": "Sealed Datapoint", "variant": "emphasis" },
+    { "id": "assurance-to-blackboard", "from": "wm_assurance", "to": "pg_blackboard", "label": "Write Governed Datapoint", "variant": "emphasis", "fromSide": "bottom", "toSide": "top" },
+    { "id": "assurance-to-registry", "from": "wm_assurance", "to": "immutable_registry", "label": "Bind Library Versions", "fromSide": "bottom", "toSide": "top" },
+    { "id": "assurance-to-auditor", "from": "wm_assurance", "to": "auditor_portal", "label": "SHA-256 Sampling Pack", "variant": "emphasis" },
+    { "id": "assurance-to-csrd", "from": "wm_assurance", "to": "csrd_esrs", "label": "ESRS E1 Datapoints", "variant": "emphasis" },
+    { "id": "blackboard-to-procure", "from": "pg_blackboard", "to": "procure_score", "label": "Site Scorecards", "variant": "dashed" },
+    { "id": "blackboard-to-pact", "from": "pg_blackboard", "to": "pact_exchange", "label": "Export PACT PCFs", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Zero-LLM Deterministic Governance", "items": ["100% algebraic closed-form equations — 0 probabilistic Hallucinations", "Sub-millisecond latency (P50: 0.044 ms) with 11,970+ records/second peak throughput", "Site-level truth (supplier-site x material x period) solves the Reddit blending problem"] },
+    { "dot": "cyan", "title": "5-Tier Waterfall & Pedigree Scoring", "items": ["Strict priority: Tier 1 Primary -> Tier 2 PCF -> Tier 3 Hybrid -> Tier 4 Factor -> Tier 5 Spend", "5-Dimension Pedigree DQS (Reliability, Completeness, Temporal, Geo, Tech)", "Automatic Gap-Closure Case creation on material Tier 5 fallbacks"] },
+    { "dot": "rose", "title": "Audit & Compliance Spine", "items": ["Auditor-ready assurance packs with SHA-256 evidence chain verification", "Definitive CBAM module: calculates actual vs default penalty surcharge exposure (EUR)", "Mathematical double-counting guard guarantees Category 1..15 sum equality"] }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "name": "WF_05_Auditor_Assurance_and_CSRD_Exporter",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "carbon/assurance/export",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook_Assurance_Export",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/api/w/demo/jobs/run/p/f/carbon_data/non_violent_script",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"action\": \"generate_assurance_pack\",\n  \"payload\": {\n    \"period_id\": $json.body.period_id || \"2025-Q4\",\n    \"auditor_name\": $json.body.auditor_name || \"INDEPENDENT_ASSURANCE_VERIFIER\"\n  }\n}"
+      },
+      "name": "Windmill_Generate_Assurance_Pack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Format ESRS E1 and CBAM disclosure manifests\nconst pack = items[0].json;\nconst esrs = pack.content.esrs_e1;\n\nreturn [{\n  json: {\n    pack_id: pack.pack_id,\n    pack_hash_sha256: pack.pack_hash_sha256,\n    auditor_ready: true,\n    csrd_disclosure: {\n      standard: esrs.standard,\n      requirement: esrs.disclosure_requirement,\n      reporting_period: esrs.reporting_period,\n      gross_scope_3_co2e_mt: esrs.gross_scope_3_co2e_mt,\n      primary_coverage_share_pct: esrs.primary_data_share_pct,\n      estimated_data_share_pct: esrs.estimated_data_share_pct,\n      average_dqs: esrs.portfolio_dqs\n    },\n    bound_versions: pack.content.bound_versions,\n    evidence_items_count: pack.content.evidence_manifest.length,\n    generated_at: pack.content.generated_at\n  }\n}];"
+      },
+      "name": "Format_CSRD_Manifest",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond_Assurance_Pack",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [920, 300]
+    }
+  ],
+  "connections": {
+    "Webhook_Assurance_Export": {
+      "main": [
+        [
+          {
+            "node": "Windmill_Generate_Assurance_Pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Windmill_Generate_Assurance_Pack": {
+      "main": [
+        [
+          {
+            "node": "Format_CSRD_Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_CSRD_Manifest": {
+      "main": [
+        [
+          {
+            "node": "Respond_Assurance_Pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

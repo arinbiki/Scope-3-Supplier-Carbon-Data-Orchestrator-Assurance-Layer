@@ -1,0 +1,46 @@
+{
+  "benchmark_summary": {
+    "total_records": 100000,
+    "total_execution_seconds": 8.3524,
+    "throughput_records_per_second": 11972.66,
+    "latency_p50_ms": 0.0439,
+    "latency_p95_ms": 0.1316,
+    "latency_p99_ms": 0.3619,
+    "zero_llm_deterministic": true
+  },
+  "governance_distributions": {
+    "tier_distribution": {
+      "tier_1": 0,
+      "tier_2": 40149,
+      "tier_3": 40027,
+      "tier_4": 11891,
+      "tier_5": 7933
+    },
+    "tier_share_pct": {
+      "tier_1": 0.0,
+      "tier_2": 40.15,
+      "tier_3": 40.03,
+      "tier_4": 11.89,
+      "tier_5": 7.93
+    },
+    "dqs_band_distribution": {
+      "HIGH": 40149,
+      "MEDIUM": 51918,
+      "LOW": 7933
+    },
+    "dqs_band_share_pct": {
+      "HIGH": 40.15,
+      "MEDIUM": 51.92,
+      "LOW": 7.93
+    }
+  },
+  "inventory_kpis": {
+    "total_emissions_mt": 163830071.67,
+    "primary_data_coverage_pct": 40.15,
+    "estimated_data_share_pct": 19.82,
+    "double_count_reconciliation": {
+      "is_reconciled": true,
+      "reconciliation_delta_mt": 0.0
+    }
+  }
+}

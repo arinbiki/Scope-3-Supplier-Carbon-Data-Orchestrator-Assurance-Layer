@@ -1,0 +1,84 @@
+{
+  "benchmark_timestamp": "2026-10-30T10:18:48.112314+00:00",
+  "total_scale_records": 10000000,
+  "concurrency_benchmarks": {
+    "1_workers": {
+      "workers": 1,
+      "duration_seconds": 0.527,
+      "records_per_second": 9491.3,
+      "latency_p50_ms": 0.0458,
+      "latency_p95_ms": 0.114,
+      "latency_p99_ms": 0.3296
+    },
+    "2_workers": {
+      "workers": 2,
+      "duration_seconds": 0.563,
+      "records_per_second": 8877.3,
+      "latency_p50_ms": 0.0655,
+      "latency_p95_ms": 0.1229,
+      "latency_p99_ms": 0.3683
+    },
+    "4_workers": {
+      "workers": 4,
+      "duration_seconds": 0.489,
+      "records_per_second": 10220.1,
+      "latency_p50_ms": 0.0395,
+      "latency_p95_ms": 0.1043,
+      "latency_p99_ms": 0.3205
+    },
+    "8_workers": {
+      "workers": 8,
+      "duration_seconds": 0.536,
+      "records_per_second": 9326.9,
+      "latency_p50_ms": 0.0492,
+      "latency_p95_ms": 0.1117,
+      "latency_p99_ms": 0.3416
+    },
+    "16_workers": {
+      "workers": 16,
+      "duration_seconds": 0.487,
+      "records_per_second": 10274.1,
+      "latency_p50_ms": 0.0407,
+      "latency_p95_ms": 0.1081,
+      "latency_p99_ms": 0.2412
+    }
+  },
+  "stress_test_results": {
+    "kpis": {
+      "double_count_reconciliation_rate": 1.0,
+      "reconciliation_variance_mt": 0.0,
+      "primary_emissions_coverage_pct": 44.05,
+      "estimated_emissions_share_pct": 55.95,
+      "portfolio_average_dqs": 1.8,
+      "dqs_high_quality_share_pct": 32.96,
+      "dqs_medium_quality_share_pct": 47.6,
+      "dqs_low_quality_share_pct": 7.31,
+      "uom_and_currency_auto_repair_rate": 19.48,
+      "gap_closure_case_generation_rate": 5.62,
+      "cbam_avoided_penalty_surcharges_eur": 483483300.0,
+      "unhandled_error_rate": 0.0
+    },
+    "performance": {
+      "sample_size": 50000,
+      "sample_duration_seconds": 6.29,
+      "mean_ops": 7945.8,
+      "p50_latency_ms": 0.0443,
+      "p95_latency_ms": 0.1114,
+      "p99_latency_ms": 0.3265,
+      "max_latency_ms": 408.862,
+      "zero_llm_deterministic": true
+    },
+    "extrapolated_10m": {
+      "total_datapoints": 10000000,
+      "tier_1_primary_records": 277000,
+      "tier_2_pcf_records": 3019200,
+      "tier_3_hybrid_records": 3687600,
+      "tier_4_factor_records": 1072600,
+      "tier_5_spend_records": 730800,
+      "total_emissions_mt": 11424757239.86,
+      "auto_repaired_records": 1948200,
+      "gap_closure_cases_created": 561600,
+      "cbam_covered_transactions": 3883400
+    }
+  }
+}

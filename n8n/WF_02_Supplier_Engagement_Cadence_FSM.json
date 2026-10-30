@@ -1,0 +1,115 @@
+{
+  "name": "WF_02_Supplier_Engagement_Cadence_FSM",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "name": "Daily_Cadence_Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Evaluate supplier engagement lifecycle state and cadence window\nconst activeSuppliers = [\n  { supplier_id: 'SUPP_NORDIC_STEEL', state: 'VALIDATED', days_since_dispatch: 4 },\n  { supplier_id: 'SUPP_SILESIAN_STEEL', state: 'SURVEY_SENT', days_since_dispatch: 7 },\n  { supplier_id: 'SUPP_SHENZHEN_STAMPING', state: 'REMINDER_2', days_since_dispatch: 21 },\n  { supplier_id: 'SUPP_APEX_POLYMERS', state: 'APPROVED', days_since_dispatch: 12 }\n];\n\nconst actions = [];\nfor (const s of activeSuppliers) {\n  let action = 'NO_OP';\n  if (s.state === 'SURVEY_SENT' && s.days_since_dispatch >= 7) {\n    action = 'SEND_REMINDER_1';\n  } else if (s.state === 'REMINDER_1' && s.days_since_dispatch >= 14) {\n    action = 'SEND_REMINDER_2';\n  } else if (s.state === 'REMINDER_2' && s.days_since_dispatch >= 21) {\n    action = 'SEND_REMINDER_3';\n  } else if (s.state === 'REMINDER_3' && s.days_since_dispatch >= 28) {\n    action = 'ESCALATE_TO_CATEGORY_MANAGER';\n  } else if (s.state === 'ESCALATED' && s.days_since_dispatch >= 35) {\n    action = 'ASSIGN_NON_RESPONDER_FALLBACK';\n  }\n  \n  if (action !== 'NO_OP') {\n    actions.push({\n      json: {\n        supplier_id: s.supplier_id,\n        period_id: '2025-Q4',\n        current_state: s.state,\n        cadence_action: action,\n        days_since_dispatch: s.days_since_dispatch\n      }\n    });\n  }\n}\n\nreturn actions.length > 0 ? actions : [{ json: { cadence_action: 'ALL_UP_TO_DATE' } }];"
+      },
+      "name": "Evaluate_Engagement_Cadence",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.cadence_action}}",
+              "operation": "notEqual",
+              "value2": "ALL_UP_TO_DATE"
+            }
+          ]
+        }
+      },
+      "name": "Filter_Active_Actions",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/api/w/demo/jobs/run/p/f/carbon_data/non_violent_script",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"action\": \"engagement_fsm\",\n  \"payload\": {\n    \"supplier_id\": $json.supplier_id,\n    \"period_id\": $json.period_id,\n    \"step_action\": $json.cadence_action\n  }\n}"
+      },
+      "name": "Advance_Windmill_FSM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [880, 240]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Notification dispatcher for Procurement / Category Managers\nreturn [{\n  json: {\n    status: 'CADENCE_EXECUTED',\n    supplier_id: items[0].json.supplier_id,\n    action_taken: items[0].json.cadence_action,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Audit_and_Dispatch_Notification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1100, 240]
+    }
+  ],
+  "connections": {
+    "Daily_Cadence_Trigger": {
+      "main": [
+        [
+          {
+            "node": "Evaluate_Engagement_Cadence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate_Engagement_Cadence": {
+      "main": [
+        [
+          {
+            "node": "Filter_Active_Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter_Active_Actions": {
+      "main": [
+        [
+          {
+            "node": "Advance_Windmill_FSM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advance_Windmill_FSM": {
+      "main": [
+        [
+          {
+            "node": "Audit_and_Dispatch_Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

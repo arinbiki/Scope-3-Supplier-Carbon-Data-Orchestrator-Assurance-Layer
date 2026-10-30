@@ -1,0 +1,134 @@
+{
+  "name": "WF_01_Inbound_Carbon_Data_Ingestion_Gate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "carbon/ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook_Carbon_Ingestion",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Zero-LLM Inbound Payload Normalizer & Idempotency Key Generator\nconst body = items[0].json.body || items[0].json;\nconst timestamp = new Date().toISOString();\nconst rawId = `${body.supplier_id || 'UNKNOWN'}_${body.site_id || 'UNKNOWN'}_${body.material_code || 'UNKNOWN'}_${body.period_id || 'UNKNOWN'}`;\n\nreturn [{\n  json: {\n    idempotency_key: 'INGEST_' + Buffer.from(rawId).toString('hex').slice(0, 24),\n    received_at: timestamp,\n    payload: {\n      period_id: body.period_id,\n      supplier_id: body.supplier_id,\n      site_id: body.site_id,\n      material_code: body.material_code,\n      quantity: parseFloat(body.quantity || 0),\n      uom: body.uom || 'metric_ton',\n      boundary: body.boundary || 'CRADLE_TO_GATE',\n      artifact_id: body.artifact_id || null,\n      has_primary_activity: Boolean(body.has_primary_activity),\n      primary_activity_intensity_kg: parseFloat(body.primary_activity_intensity_kg || 0),\n      pcf_intensity_kg_co2e: body.pcf_intensity_kg_co2e ? parseFloat(body.pcf_intensity_kg_co2e) : null,\n      spend_amount: body.spend_amount ? parseFloat(body.spend_amount) : null,\n      currency: body.currency || 'USD',\n      transaction_year: body.transaction_year || '2025'\n    }\n  }\n}];"
+      },
+      "name": "Normalizer_and_Idempotency",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/api/w/demo/jobs/run/p/f/carbon_data/non_violent_script",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"action\": \"orchestrate_datapoint\",\n  \"payload\": $json.payload\n}"
+      },
+      "name": "Windmill_Carbon_Orchestrator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.success}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Check_Orchestration_Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ACCEPTED\",\n  \"datapoint_id\": $json.datapoint.datapoint_id,\n  \"method_tier\": $json.datapoint.method_tier,\n  \"tier_name\": $json.datapoint.tier_name,\n  \"emissions_co2e_mt\": $json.datapoint.co2e_emissions_mt,\n  \"dqs_overall\": $json.datapoint.dqs.overall_dqs,\n  \"dqs_band\": $json.datapoint.dqs.band,\n  \"is_estimate\": $json.datapoint.is_estimate,\n  \"validation_repairs\": $json.validation_repairs\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond_Success_200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"REJECTED\",\n  \"stage\": \"VALIDATION_GATE_FAILURE\",\n  \"reason_codes\": $json.errors || [\"VALIDATION_REJECTED\"],\n  \"auto_repairs\": $json.repairs || []\n}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "name": "Respond_Validation_Error_422",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 380]
+    }
+  ],
+  "connections": {
+    "Webhook_Carbon_Ingestion": {
+      "main": [
+        [
+          {
+            "node": "Normalizer_and_Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizer_and_Idempotency": {
+      "main": [
+        [
+          {
+            "node": "Windmill_Carbon_Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Windmill_Carbon_Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Check_Orchestration_Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check_Orchestration_Success": {
+      "main": [
+        [
+          {
+            "node": "Respond_Success_200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond_Validation_Error_422",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "name": "WF_03_Scope3_Calculation_Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "carbon/rollup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook_Trigger_Rollup",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/api/w/demo/jobs/run/p/f/carbon_data/non_violent_script",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"action\": \"period_rollup\",\n  \"payload\": {\n    \"period_id\": $json.body.period_id || \"2025-Q4\"\n  }\n}"
+      },
+      "name": "Windmill_Execute_Rollup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.double_count_reconciliation.is_reconciled}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Verify_Double_Count_Reconciled",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ROLLUP_SUCCESSFUL\",\n  \"run_id\": $json.run_id,\n  \"period_id\": $json.period_id,\n  \"total_emissions_co2e_mt\": $json.total_emissions_mt,\n  \"primary_coverage_pct\": $json.kpis.primary_emissions_coverage_pct,\n  \"estimated_share_pct\": $json.kpis.estimated_share_pct,\n  \"average_dqs\": $json.kpis.average_dqs,\n  \"double_count_reconciled\": true,\n  \"tier_distribution\": $json.tier_distribution_mt,\n  \"category_totals\": $json.category_totals\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond_Rollup_Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [920, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"INTEGRITY_VIOLATION\",\n  \"message\": \"Double-counting reconciliation failed. Category sum does not equal inventory total.\",\n  \"reconciliation_delta_mt\": $json.double_count_reconciliation.reconciliation_delta_mt\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "name": "Respond_Integrity_Failure",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [920, 380]
+    }
+  ],
+  "connections": {
+    "Webhook_Trigger_Rollup": {
+      "main": [
+        [
+          {
+            "node": "Windmill_Execute_Rollup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Windmill_Execute_Rollup": {
+      "main": [
+        [
+          {
+            "node": "Verify_Double_Count_Reconciled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify_Double_Count_Reconciled": {
+      "main": [
+        [
+          {
+            "node": "Respond_Rollup_Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond_Integrity_Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
